@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns="https://www.w3.org/1999/xhtml">
 	<head>
 		<title>GPS data</title>
@@ -54,13 +54,13 @@
 		
 		<!-- begin GPS Visualizer setup script (must come after loading of API code) -->
 		<script type="text/javascript">
-			/* Global variables used by the GPS Visualizer functions (20231225112839): */
+			/* Global variables used by the GPS Visualizer functions (20231225113630): */
 			gv_options = {};
 			
 			// basic map parameters:
 			gv_options.center = [40.787185999,-73.966804251];  // [latitude,longitude] - be sure to keep the square brackets
 			gv_options.zoom = 11;  // higher number means closer view; can also be 'auto' for automatic zoom/center based on map elements
-			gv_options.map_type = 'GV_OSM_RELIEF';  // popular map_type choices are 'GV_STREET', 'GV_SATELLITE', 'GV_HYBRID', 'GV_TERRAIN', 'GV_OSM', 'GV_TOPO_US', 'GV_TOPO_WORLD' (https://www.gpsvisualizer.com/misc/leaflet_map_types.html)
+			gv_options.map_type = 'GV_OSM';  // popular map_type choices are 'GV_STREET', 'GV_SATELLITE', 'GV_HYBRID', 'GV_TERRAIN', 'GV_OSM', 'GV_TOPO_US', 'GV_TOPO_WORLD' (https://www.gpsvisualizer.com/misc/leaflet_map_types.html)
 			gv_options.map_opacity = 1.00;  // number from 0 to 1
 			gv_options.full_screen = true;  // true|false: should the map fill the entire page (or frame)?
 			gv_options.width = 700;  // width of the map, in pixels
@@ -95,7 +95,7 @@
 			gv_options.crosshair_hidden = true;  // true|false: hide the crosshair initially?
 			gv_options.mouse_coordinates = false;  // true|false: show a "mouse coordinates" box?
 			gv_options.utilities_menu = { 'maptype':true, 'opacity':true, 'measure':true, 'geolocate':true, 'profile':false };
-			gv_options.allow_export = true;  // true|false
+			gv_options.allow_export = false;  // true|false
 			
 			gv_options.infobox_options = {}; // options for a floating info box (id="gv_infobox"), which can contain anything
 			  gv_options.infobox_options.enabled = true;  // true|false: enable or disable the info box altogether
@@ -119,7 +119,7 @@
 			gv_options.driving_directions = false;  // put a small "driving directions" form in each marker's pop-up window? (override with dd:true or dd:false in a marker's options)
 			gv_options.garmin_icon_set = 'gpsmap'; // 'gpsmap' are the small 16x16 icons; change it to '24x24' for larger icons
 			gv_options.marker_list_options = {};  // options for a dynamically-created list of markers
-			  gv_options.marker_list_options.enabled = false;  // true|false: enable or disable the marker list altogether
+			  gv_options.marker_list_options.enabled = true;  // true|false: enable or disable the marker list altogether
 			  gv_options.marker_list_options.floating = true;  // is the list a floating box inside the map itself?
 			  gv_options.marker_list_options.position = ['RIGHT_BOTTOM',6,38];  // floating list only: position within map
 			  gv_options.marker_list_options.min_width = 160; // minimum width, in pixels, of the floating list
@@ -708,7 +708,7 @@
 					
 			}
 			GV_Map(); // execute the above code
-			// https://www.gpsvisualizer.com/map_input?allow_export=1&form=html&special=geocoder&units=us
+			// https://www.gpsvisualizer.com/map_input?bg_map=GV_OSM&form=html&map_profile=0&special=geocoder&trk_list=name&units=us&wpt_list=name
 		</script>
 		
 		
