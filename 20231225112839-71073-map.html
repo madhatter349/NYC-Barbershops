@@ -1,0 +1,718 @@
+﻿<!DOCTYPE html>
+<html xmlns="https://www.w3.org/1999/xhtml">
+	<head>
+		<title>GPS data</title>
+		<base target="_top"></base>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+		<meta name="geo.position" content="40.787186; -73.9668043" />
+		<meta name="ICBM" content="40.787186, -73.9668043" />
+	</head>
+	<body style="margin:0px;">
+		
+		<script type="text/javascript">
+			API = 'leaflet'; // can be either 'leaflet' or 'google'
+			if (self.API && API.match(/^g/i)) {
+				google_api_key = ''; // Your project's Google Maps API key goes here (https://code.google.com/apis/console)
+				language_code = '';
+				document.writeln('<script src="https://maps.googleapis.com/maps/api/js?v=3&amp;libraries=geometry&amp;language='+(self.language_code?self.language_code:'')+'&amp;key='+(self.google_api_key?self.google_api_key:'')+'" type="text/javascript"><'+'/script>');
+			} else {
+				document.writeln('<link href="https://unpkg.com/leaflet/dist/leaflet.css" rel="stylesheet" />');
+				document.writeln('<script src="https://unpkg.com/leaflet/dist/leaflet.js" type="text/javascript"><'+'/script>');
+			}
+			thunderforest_api_key = ''; // To display OpenStreetMap tiles from ThunderForest, you need a key (https://www.thunderforest.com/docs/apikeys/)
+			ign_api_key = ''; // To display topo tiles from IGN.fr, you need a key (https://api.ign.fr/)
+		</script>
+
+		
+		<!--
+			If you want to transplant this map into another Web page, by far the best method is to
+			simply include it in a IFRAME tag (see https://www.gpsvisualizer.com/faq.html#google_html).
+			But, if you must paste the code into another page, be sure to include all of these parts:
+			   1. The "div" tags that contain the map and its widgets, below
+			   2. Three sections of JavaScript code:
+			      a. The API code (from googleapis.com or unpkg.com/leaflet), above
+			      b. "gv_options" and the code that calls a .js file on gpsvisualizer.com
+			      c. The "GV_Map" function, which contains all the geographic info for the map
+		-->
+		<div style="margin-left:0px; margin-right:0px; margin-top:0px; margin-bottom:0px;">
+			<div id="gmap_div" style="width:100%; height:100%; margin:0px; margin-right:12px; background-color:#f0f0f0; float:left; overflow:hidden;">
+				<p style="text-align:center; font:10px Arial;">This map was created using <a target="_blank" href="https://www.gpsvisualizer.com/">GPS Visualizer</a>'s do-it-yourself geographic utilities.<br /><br />Please wait while the map data loads...</p>
+			</div>
+				
+			<div id="gv_infobox" class="gv_infobox" style="font:11px Arial; border:solid #666666 1px; background-color:#ffffff; padding:4px; overflow:auto; display:none; max-width:400px;">
+				<!-- Although GPS Visualizer didn't create an legend/info box with your map, you can use this space for something else if you'd like; enable it by setting gv_options.infobox_options.enabled to true -->
+			</div>
+
+
+
+			<div id="gv_marker_list" class="gv_marker_list" style="background-color:#ffffff; overflow:auto; display:none;"><!-- --></div>
+
+			<div id="gv_clear_margins" style="height:0px; clear:both;"><!-- clear the "float" --></div>
+		</div>
+
+		
+		<!-- begin GPS Visualizer setup script (must come after loading of API code) -->
+		<script type="text/javascript">
+			/* Global variables used by the GPS Visualizer functions (20231225112839): */
+			gv_options = {};
+			
+			// basic map parameters:
+			gv_options.center = [40.787185999,-73.966804251];  // [latitude,longitude] - be sure to keep the square brackets
+			gv_options.zoom = 11;  // higher number means closer view; can also be 'auto' for automatic zoom/center based on map elements
+			gv_options.map_type = 'GV_OSM_RELIEF';  // popular map_type choices are 'GV_STREET', 'GV_SATELLITE', 'GV_HYBRID', 'GV_TERRAIN', 'GV_OSM', 'GV_TOPO_US', 'GV_TOPO_WORLD' (https://www.gpsvisualizer.com/misc/leaflet_map_types.html)
+			gv_options.map_opacity = 1.00;  // number from 0 to 1
+			gv_options.full_screen = true;  // true|false: should the map fill the entire page (or frame)?
+			gv_options.width = 700;  // width of the map, in pixels
+			gv_options.height = 700;  // height of the map, in pixels
+			
+			gv_options.map_div = 'gmap_div';  // the name of the HTML "div" tag containing the map itself; usually 'gmap_div'
+			gv_options.doubleclick_zoom = true;  // true|false: zoom in when mouse is double-clicked?
+			gv_options.doubleclick_center = true;  // true|false: re-center the map on the point that was double-clicked?
+			gv_options.scroll_zoom = true; // true|false; or 'reverse' for down=in and up=out
+			gv_options.page_scrolling = true; // true|false; does the map relenquish control of the scroll wheel when embedded in scrollable pages?
+			gv_options.autozoom_adjustment = 0; gv_options.autozoom_default = 11;
+			gv_options.centering_options = { 'open_info_window':true, 'partial_match':true, 'center_key':'center', 'default_zoom':null } // URL-based centering (e.g., ?center=name_of_marker&zoom=14)
+			gv_options.street_view = false; // true|false: allow Google Street View on the map (Google Maps only)
+			gv_options.tilt = false; // true|false: allow Google Maps to show 45-degree tilted aerial imagery?
+			gv_options.disable_google_pois = false;  // true|false: if you disable clickable POIs on Google Maps, you also lose the labels on parks, airports, etc.
+			gv_options.animated_zoom = true; // true|false: only affects Leaflet maps
+			
+			// widgets on the map:
+			gv_options.zoom_control = 'auto'; // 'auto'|'large'|'small'|'none'
+			gv_options.recenter_button = true; // true|false: is there a 'click to recenter' button above the zoom control?
+			gv_options.geolocation_control = false; // true|false; only works on secure servers
+			gv_options.geolocation_options = { center:true, zoom:null, marker:true, info_window:true };
+			gv_options.scale_control = true; // true|false
+			gv_options.map_opacity_control = false;  // true|false
+			gv_options.map_type_control = {};  // widget to change the background map
+			  gv_options.map_type_control.visible = 'auto'; // true|false|'auto': is a map type control placed on the map itself?
+			  gv_options.map_type_control.filter = false;  // true|false: when map loads, are irrelevant maps ignored?
+			  gv_options.map_type_control.excluded = [];  // comma-separated list of quoted map IDs that will never show in the list ('included' also works)
+			gv_options.center_coordinates = true;  // true|false: show a "center coordinates" box and crosshair?
+			gv_options.measurement_tools = true; // true|false: put a measurement ruler on the map?
+			gv_options.measurement_options = { visible:false, distance_color:'', area_color:'' };
+			gv_options.crosshair_hidden = true;  // true|false: hide the crosshair initially?
+			gv_options.mouse_coordinates = false;  // true|false: show a "mouse coordinates" box?
+			gv_options.utilities_menu = { 'maptype':true, 'opacity':true, 'measure':true, 'geolocate':true, 'profile':false };
+			gv_options.allow_export = true;  // true|false
+			
+			gv_options.infobox_options = {}; // options for a floating info box (id="gv_infobox"), which can contain anything
+			  gv_options.infobox_options.enabled = true;  // true|false: enable or disable the info box altogether
+			  gv_options.infobox_options.position = ['LEFT_TOP',52,4];  // [Google anchor name, relative x, relative y]
+			  gv_options.infobox_options.draggable = true;  // true|false: can it be moved around the screen?
+			  gv_options.infobox_options.collapsible = true;  // true|false: can it be collapsed by double-clicking its top bar?
+
+			// marker-related options:
+			gv_options.default_marker = { color:'red',icon:'googlemini',scale:1 }; // icon can be a URL, but be sure to also include size:[w,h] and optionally anchor:[x,y]
+			gv_options.vector_markers = true; // are the icons on the map in embedded SVG format?
+			gv_options.marker_tooltips = true; // do the names of the markers show up when you mouse-over them?
+			gv_options.marker_shadows = true; // true|false: do the standard markers have "shadows" behind them?
+			gv_options.marker_link_target = '_blank'; // the name of the window or frame into which markers' URLs will load
+			gv_options.info_window_width = 0;  // in pixels, the width of the markers' pop-up info "bubbles" (can be overridden by 'window_width' in individual markers)
+			gv_options.thumbnail_width = 0;  // in pixels, the width of the markers' thumbnails (can be overridden by 'thumbnail_width' in individual markers)
+			gv_options.photo_size = [0,0];  // in pixels, the size of the photos in info windows (can be overridden by 'photo_width' or 'photo_size' in individual markers)
+			gv_options.hide_labels = false;  // true|false: hide labels when map first loads?
+			gv_options.labels_behind_markers = false; // true|false: are the labels behind other markers (true) or in front of them (false)?
+			gv_options.label_offset = [0,0];  // [x,y]: shift all markers' labels (positive numbers are right and down)
+			gv_options.label_centered = false;  // true|false: center labels with respect to their markers?  (label_left is also a valid option.)
+			gv_options.driving_directions = false;  // put a small "driving directions" form in each marker's pop-up window? (override with dd:true or dd:false in a marker's options)
+			gv_options.garmin_icon_set = 'gpsmap'; // 'gpsmap' are the small 16x16 icons; change it to '24x24' for larger icons
+			gv_options.marker_list_options = {};  // options for a dynamically-created list of markers
+			  gv_options.marker_list_options.enabled = false;  // true|false: enable or disable the marker list altogether
+			  gv_options.marker_list_options.floating = true;  // is the list a floating box inside the map itself?
+			  gv_options.marker_list_options.position = ['RIGHT_BOTTOM',6,38];  // floating list only: position within map
+			  gv_options.marker_list_options.min_width = 160; // minimum width, in pixels, of the floating list
+			  gv_options.marker_list_options.max_width = 160;  // maximum width
+			  gv_options.marker_list_options.min_height = 0;  // minimum height, in pixels, of the floating list
+			  gv_options.marker_list_options.max_height = 310;  // maximum height
+			  gv_options.marker_list_options.draggable = true;  // true|false, floating list only: can it be moved around the screen?
+			  gv_options.marker_list_options.collapsible = true;  // true|false, floating list only: can it be collapsed by double-clicking its top bar?
+			  gv_options.marker_list_options.include_tickmarks = false;  // true|false: are distance/time tickmarks included in the list?
+			  gv_options.marker_list_options.include_trackpoints = false;  // true|false: are "trackpoint" markers included in the list?
+			  gv_options.marker_list_options.dividers = false;  // true|false: will a thin line be drawn between each item in the list?
+			  gv_options.marker_list_options.desc = false;  // true|false: will the markers' descriptions be shown below their names in the list?
+			  gv_options.marker_list_options.icons = true;  // true|false: should the markers' icons appear to the left of their names in the list?
+			  gv_options.marker_list_options.thumbnails = false;  // true|false: should markers' thumbnails be shown in the list?
+			  gv_options.marker_list_options.folders_collapsed = false;  // true|false: do folders in the list start out in a collapsed state?
+			  gv_options.marker_list_options.folders_hidden = false;  // true|false: do folders in the list start out in a hidden state?
+			  gv_options.marker_list_options.collapsed_folders = []; // an array of folder names
+			  gv_options.marker_list_options.hidden_folders = []; // an array of folder names
+			  gv_options.marker_list_options.count_folder_items = false;  // true|false: list the number of items in each folder?
+			  gv_options.marker_list_options.folder_zoom = true;  // true|false: is there a zoom link next to each folder name?
+			  gv_options.marker_list_options.wrap_names = true;  // true|false: should marker's names be allowed to wrap onto more than one line?
+			  gv_options.marker_list_options.unnamed = '[unnamed]';  // what 'name' should be assigned to  unnamed markers in the list?
+			  gv_options.marker_list_options.colors = false;  // true|false: should the names/descs of the points in the list be colorized the same as their markers?
+			  gv_options.marker_list_options.default_color = '';  // default HTML color code for the names/descs in the list
+			  gv_options.marker_list_options.limit = 0;  // how many markers to show in the list; 0 for no limit
+			  gv_options.marker_list_options.center = false;  // true|false: does the map center upon a marker when you click its name in the list?
+			  gv_options.marker_list_options.zoom = false;  // true|false: does the map zoom to a certain level when you click on a marker's name in the list?
+			  gv_options.marker_list_options.zoom_level = 15;  // if 'zoom' is true, what level should the map zoom to?
+			  gv_options.marker_list_options.info_window = true;  // true|false: do info windows pop up when the markers' names are clicked in the list?
+			  gv_options.marker_list_options.url_links = false;  // true|false: do the names in the list become instant links to the markers' URLs?
+			  gv_options.marker_list_options.toggle = false;  // true|false: does a marker disappear if you click on its name in the list?
+			  gv_options.marker_list_options.help_tooltips = false;  // true|false: do "tooltips" appear on marker names that tell you what happens when you click?
+			  gv_options.marker_list_options.id = 'gv_marker_list';  // id of a DIV tag that holds the list
+			  gv_options.marker_list_options.header = ''; // HTML code; be sure to put backslashes in front of any single quotes, and don't include any line breaks
+			  gv_options.marker_list_options.footer = ''; // HTML code
+			gv_options.marker_filter_options = {};  // options for removing waypoints that are out of the current view
+			  gv_options.marker_filter_options.enabled = false;  // true|false: should out-of-range markers be removed?
+			  gv_options.marker_filter_options.movement_threshold = 8;  // in pixels, how far the map has to move to trigger filtering
+			  gv_options.marker_filter_options.limit = 0;  // maximum number of markers to display on the map; 0 for no limit
+			  gv_options.marker_filter_options.update_list = true;  // true|false: should the marker list be updated with only the filtered markers?
+			  gv_options.marker_filter_options.sort_list_by_distance = false;  // true|false: should the marker list be sorted by distance from the center of the map?
+			  gv_options.marker_filter_options.min_zoom = 0;  // below this zoom level, don't show any markers at all
+			  gv_options.marker_filter_options.zoom_message = '';  // message to put in the marker list if the map is below the min_zoom threshold
+			gv_options.synthesize_fields = {}; // for example: {label:'{name}'} would cause all markers' names to become visible labels
+				
+
+			
+			// Load GPS Visualizer's mapping functions (this must be loaded AFTER gv_options are set):
+			var script_file = (self.API && API.match(/^g/i)) ? 'google_maps/functions3.js' : 'leaflet/functions.js';
+			document.writeln('<script src="https://www.gpsvisualizer.com/'+script_file+'" type="text/javascript"><'+'/script>');
+		</script>
+		<style type="text/css">
+			/* Put any custom style definitions here (e.g., .gv_marker_info_window, .gv_marker_info_window_name, .gv_marker_list_item, .gv_tooltip, .gv_label, etc.) */
+			#gmap_div .gv_marker_info_window {
+				font-size:11px !important;
+			}
+			#gmap_div .gv_label {
+				opacity:0.90; filter:alpha(opacity=90);
+				color:white; background:#333333; border:1px solid black; padding:1px;
+				font-family:Verdana !important; font-size:10px;
+				font-weight:normal !important;
+			}
+			.legend_block {
+				display:inline-block; border:solid 1px black; width:9px; height:9px; margin:0px 2px 0px 0px;
+			}
+			
+		</style>
+		
+		<!-- end GPSV setup script and styles; begin map-drawing script (they must be separate) -->
+		<script type="text/javascript">
+			function GV_Map() {
+				GV_Setup_Map();
+				
+				
+				
+				GV_Draw_Marker({lat:40.7456254,lon:-73.9879174,name:'Rudys Barber Shop',desc:'14 WEST 29 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7432270,lon:-73.9996207,name:'Good Head',desc:'256 WEST 20 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7428487,lon:-73.9969150,name:'A R Hair Salon Inc',desc:'200 WEST 21 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7212349,lon:-73.9840815,name:'Socrates Hair Designer',desc:'3 CLINTON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7096012,lon:-74.0062757,name:'Royal Barber Shop',desc:'150 WILLIAM STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7971492,lon:-73.9694865,name:'Alex Barber Shop Enterprises Inc',desc:'219 WEST 100 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7626719,lon:-73.9755847,name:'The Gloria Wan Corporation',desc:'16 WEST 56 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7628294,lon:-73.9732185,name:'Tn Group Inc',desc:'5 EAST 57 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8351274,lon:-73.9437796,name:'Los Magos Barber Shop',desc:'3818 BROADWAY, Astoria, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7863638,lon:-73.9517046,name:'B & S Hair Stylist Inc',desc:'115 EAST 96 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7556894,lon:-73.9906925,name:'Diamond Cuts Salon And Barbershop',desc:'614 8 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7607192,lon:-73.9704570,name:'Nico Hair Stylist Inc',desc:'111 EAST 56 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7475391,lon:-73.9819990,name:'The Executive Den Mens Hair',desc:'53 EAST 34 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7475795,lon:-74.0007656,name:'Chelsea Grand Barber Shop Inc',desc:'237 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7663537,lon:-73.9572884,name:'Salon Voila Inc',desc:'1295 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8081235,lon:-73.9487514,name:'Harlem Masters',desc:'2077 7 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7262634,lon:-73.9837801,name:'Todays Cut',desc:'133 EAST 7 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7174661,lon:-74.0144081,name:'Arthurs Salon Inc',desc:'455 NORTH END AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7958046,lon:-73.9435238,name:'Sanchez Unisex',desc:'1797 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8651613,lon:-73.9212818,name:'Diaz Barber Shop',desc:'199 SHERMAN AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7354908,lon:-73.9866866,name:'Best Hair Cuts Salon Inc',desc:'132 EAST 17 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7595465,lon:-73.9909700,name:'Drakakis Nikolaos',desc:'349 WEST 44 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8544139,lon:-73.9297849,name:'1588 Chiquis Unisex Inc',desc:'1584 SAINT NICHOLAS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7299314,lon:-73.9927456,name:'Astor Place Hairstylisis Inc',desc:'2 ASTOR PLACE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7856371,lon:-73.9759350,name:'El Urena Inc',desc:'177 WEST 83 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7773855,lon:-73.9487943,name:'Manhattan Barber Shop Inc',desc:'1666 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7051318,lon:-74.0096676,name:'Georges Hair Styling Inc',desc:'60 BEAVER STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7685089,lon:-73.9855213,name:'Jeunesse Coiffure Inc',desc:'891 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7411618,lon:-73.9854487,name:'333 Park Ave South Barber Shop',desc:'333 PARK AVENUE SOUTH, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7404920,lon:-73.9809240,name:'Anthonys Hair Stylist Inc',desc:'215 EAST 26 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7796656,lon:-73.9506697,name:'Davida Salov Inc',desc:'1711 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7728836,lon:-73.9501142,name:'Affinity Ubs',desc:'444 EAST 81 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8518196,lon:-73.9351168,name:'Modern Salon',desc:'4305 B\'WAY, Astoria, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7899320,lon:-73.9481489,name:'Depelos Barber Shop',desc:'1620 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8676110,lon:-73.9210762,name:'Erik Barbershop Of Ny Inc',desc:'609 WEST 207 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7511146,lon:-73.9770574,name:'Olde Tyme Barbers Inc',desc:'117 EAST 41 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7343142,lon:-73.9939843,name:'Eugene John Tony',desc:'4 EAST 12 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7442332,lon:-73.9857146,name:'Domel Studio Llc',desc:'80 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7972561,lon:-73.9487270,name:'Brite Lite Barber Shop',desc:'1309 5 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7796626,lon:-73.9837085,name:'Barbershop Club Inc',desc:'253 WEST 72 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7130691,lon:-74.0096212,name:'Ray Barber Shop & Beauty Shop Inc',desc:'100 CHURCH STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7207634,lon:-73.9971538,name:'Next Level Barber Shop Usa Inc',desc:'396 BROOME STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8502637,lon:-73.9310396,name:'Batista Barber Shop 2',desc:'375 AUDUBON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7942119,lon:-73.9711230,name:'Broadway Barber Shop & Unisex Salon Enterprises Inc',desc:'206 WEST 96 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7438247,lon:-73.9740066,name:'Eddys Barber Shop',desc:'344 EAST 34 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8079992,lon:-73.9637124,name:'Columbia Barber Shop Unisex',desc:'66 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8645035,lon:-73.9193442,name:'On Point',desc:'504 WEST 207 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7536477,lon:-73.9661046,name:'Five Stars Barber Shop',desc:'882 FIRST AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7568240,lon:-73.9719614,name:'The Renaissance Hair Salon',desc:'569 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7142380,lon:-74.0168684,name:'Jacks Unisex Corp',desc:'1 NORTH END AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7554522,lon:-73.9720718,name:'S & G Shaving Corp',desc:'146 EAST 49 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7206593,lon:-73.9899904,name:'Well Connected The Barbershop Inc',desc:'66 RIVINGTON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7504407,lon:-73.9785921,name:'Towne Mens Hairstylists',desc:'99 PARK AVENUE, Staten Island, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7640871,lon:-73.9669126,name:'Premium Barber Shop Ii Inc',desc:'115 1/2 EAST 62 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7654375,lon:-73.9656535,name:'La Piscine',desc:'843 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7275646,lon:-73.9831200,name:'Neighborhood Barbers Inc',desc:'439 EAST 9 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7456892,lon:-73.9778714,name:'Studio 34 Hair Salon Inc',desc:'201 EAST 34 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8445553,lon:-73.9374474,name:'Republic Barber Shop Service Inc',desc:'1269 SAINT NICHOLAS\' AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7917494,lon:-73.9722849,name:'Elite Unisex Hair Salon Barber Shop & Nail & Spa',desc:'662 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7296690,lon:-73.9835866,name:'Perwault Inc',desc:'190 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7446662,lon:-73.9761942,name:'Michelles Hair Color Boutique Inc',desc:'619 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8186248,lon:-73.9381244,name:'Tripple D Barber Shop Ii',desc:'100 WEST 142 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7758160,lon:-73.9581050,name:'Gents New York',desc:'1183 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7620361,lon:-73.9774538,name:'Viviot Martial',desc:'39 WEST 54 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7841413,lon:-73.9787918,name:'Barbershop On 80Th Inc',desc:'212 WEST 80 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8276638,lon:-73.9497482,name:'Ofrosina Beauty Salon',desc:'3577 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7526582,lon:-73.9746255,name:'Reamir 57 Corp',desc:'141 EAST 44 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7856508,lon:-73.9730175,name:'Reamir 57 Corp',desc:'512 COLUMBUS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7446990,lon:-73.9966563,name:'Haircrafters Inc',desc:'225 WEST 23 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7930593,lon:-73.9463299,name:'Dj Barber Shop',desc:'124 EAST 107 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8366489,lon:-73.9426752,name:'Romulo Barber Shop',desc:'3860 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8260138,lon:-73.9476107,name:'Unbelievable Cuts',desc:'504 WEST 146 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7601141,lon:-73.9747684,name:'Art Of Shaving Fl Llc',desc:'520 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7602226,lon:-73.9853358,name:'Macri Salvatore',desc:'1585 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7206516,lon:-73.9968580,name:'Barbers Blueprint Inc',desc:'181 MULBERRY STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7058298,lon:-74.0071875,name:'Pine Street Barber Shop Inc',desc:'79 PINEAPPLE WALK, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7680593,lon:-73.9853916,name:'Jjt Barber Shop Inc',desc:'882 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7187670,lon:-73.9853514,name:'Ilario Barber Shop',desc:'87 CLINTON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7993968,lon:-73.9670169,name:'Mercedes International I',desc:'205 WEST 104 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7378836,lon:-73.9812748,name:'23Rd Street Jewelry And Hair Corp',desc:'248 EAST 23 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7426836,lon:-73.9969055,name:'Roberts Barber Shop Shimon Corp',desc:'180 7 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8154253,lon:-73.9471087,name:'Denny Moes Superstar Barbershop Inc',desc:'2496 FREDERICK DOUGLASS BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7486869,lon:-73.9761861,name:'Dazzle Concept Salon Inc',desc:'590 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7683427,lon:-73.9584873,name:'Vekis Hairstyling Inc',desc:'1388 SECOND AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7293557,lon:-73.9855298,name:'East Village Barber Shop Inc',desc:'223 EAST 10 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7597400,lon:-73.9742200,name:'Park Avenue Hair Stylist',desc:'515 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7140382,lon:-74.0088607,name:'Barbers Mike And Son Inc',desc:'130 CHURCH STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7449148,lon:-73.9971558,name:'Mdl Salon Associates Ltd',desc:'249 WEST 23 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7642682,lon:-73.9910370,name:'Steves Editing Barber Shop',desc:'446 WEST 50 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7629913,lon:-73.9763834,name:'Dejavous Salon Inc',desc:'38 WEST 56 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7501994,lon:-73.9773287,name:'Concord Hair Design Salon Inc',desc:'124 EAST 40 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7955920,lon:-73.9426048,name:'Chucho And Belky Unisex Beauty Salon Inc',desc:'172 EAST 112 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7522696,lon:-73.9706610,name:'Golden Hair Salon And Barber Shop',desc:'853 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7643949,lon:-73.9727063,name:'Emile',desc:'781 5 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7100656,lon:-74.0072062,name:'Styling Haircutters Llc',desc:'123 FULTON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8634992,lon:-73.9266846,name:'72 Esteban Barber Shop Inc',desc:'72 SHERMAN AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7307516,lon:-73.9815460,name:'Big Apple Barber Shop',desc:'422 EAST 14 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7804380,lon:-73.9539957,name:'Quality Barbers Inc',desc:'164 EAST 88 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7152478,lon:-73.9900812,name:'Jinyu Hair Salon',desc:'17 ESSEX STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7142120,lon:-74.0066159,name:'Tribeca Hair Studio',desc:'74 CHAMBERS STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7097293,lon:-74.0085460,name:'Mikes Barber Shop On John St',desc:'29 JOHN STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7387515,lon:-74.0005282,name:'Hollywood 2002',desc:'204 WEST 14 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7525078,lon:-73.9866369,name:'Liberty Shops Inc',desc:'110 WEST 38 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7418332,lon:-73.9958026,name:'Muze Salon Llc',desc:'141 WEST 20 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7989869,lon:-73.9428559,name:'Randy Barbershop Unisex Inc',desc:'106 EAST 116 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7507788,lon:-73.9706061,name:'Hair 2 Stay 48 Inc',desc:'328 WEST 44 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7446233,lon:-73.9868872,name:'Dmitriy Final Touch',desc:'1 EAST 28 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7440758,lon:-73.9951765,name:'Made Man Barbershop Inc',desc:'169 WEST 23 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7742193,lon:-73.9485958,name:'Eurostyle Unisex Inc',desc:'1567 YORK AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7395571,lon:-73.9806273,name:'Classic Shave Barber Shop Inc',desc:'235 EAST 25 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8163885,lon:-73.9465441,name:'Fig 135 Unisex Salon',desc:'2532 8 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7289490,lon:-73.9785364,name:'Michael Unisex Inc',desc:'218 AVENUE B, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7754747,lon:-73.9557538,name:'Willies Styling Center Corp',desc:'209 EAST 81 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7632273,lon:-73.9769566,name:'Barber Shop On 56 Inc',desc:'54 WEST 56 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7356245,lon:-73.9985396,name:'Igor Unisex Hair Stylists Inc',desc:'103 WEST 11 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7217872,lon:-73.9834687,name:'Rauls Barber Shop',desc:'11 AVENUE B, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7644530,lon:-73.9880253,name:'Arkadiy Barber Shop',desc:'774 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7200265,lon:-74.0036606,name:'Ilyas Barber Shop',desc:'33 LISPENARD STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8254245,lon:-73.9508584,name:'Lucerna Barber Shop Unisex',desc:'3514 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8378890,lon:-73.9425852,name:'De Lola Barber Shop Inc',desc:'600 WEST 163 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7560847,lon:-73.9697183,name:'Universal Master Hair Salon Inc',desc:'212 EAST 51 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8010956,lon:-73.9654686,name:'954 Angels Barbershop Corp',desc:'954 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7503516,lon:-73.9776889,name:'Toshi & Hairmates Inc',desc:'114 EAST 40 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7595810,lon:-73.9655134,name:'Reamir 57 Corp',desc:'251 EAST 57 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7637266,lon:-73.9889968,name:'Nica & Sam Inc',desc:'743 NINTH AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7053758,lon:-74.0138515,name:'Lev Barber Shop',desc:'11-11 B\'WAY, Astoria, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7842390,lon:-73.9519700,name:'Mr Lucky European Hair Styling',desc:'1435 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7950318,lon:-73.9446664,name:'Cristo Rey Barber Shop',desc:'137 EAST 110 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7662231,lon:-73.9599134,name:'Mark Garrison Salon',desc:'315 EAST 68 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7611569,lon:-73.9707764,name:'Visiting Barber Services Inc',desc:'445 PARK AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7533472,lon:-73.9928600,name:'Ben Sion Salon Inc',desc:'519 8 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7449495,lon:-73.9972310,name:'Rf Shelsea Garden Barber Shop Inc',desc:'253 WEST 23 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7716524,lon:-73.9614928,name:'Paul Mole Barber Shop',desc:'1034 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7970679,lon:-73.9375173,name:'Guerrerense Barber Shop Unisex',desc:'301 EAST 116 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7702337,lon:-73.9625304,name:'Delta Hair Stylists Inc',desc:'992 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7074712,lon:-74.0110407,name:'Esquires Of Wall Street',desc:'14 WALL STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7412481,lon:-73.9807901,name:'Headline Barber Shop Inc',desc:'203 EAST 27 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8683553,lon:-73.9218225,name:'Ray Mazzinis Barber Shop',desc:'634 WEST 207 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7223906,lon:-73.9799193,name:'Perfection Barber Shop',desc:'56 AVENUE C, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7714251,lon:-73.9562324,name:'Deva Hair Design Salon Inc',desc:'1456 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7453800,lon:-73.9845305,name:'Paradise Hair Salon',desc:'121 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7332795,lon:-74.0055866,name:'Avrumov Ilkham',desc:'119 CHRISTOPHER STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7769474,lon:-73.9572744,name:'Shantl & Co Inc',desc:'1211 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7397775,lon:-73.9890867,name:'Barber Barts Inc',desc:'17 EAST 21 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7453312,lon:-73.9943108,name:'Free Style Barber Shop',desc:'165 WEST 25 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8523064,lon:-73.9317868,name:'All Star Barber Shop Corp',desc:'1515 SAINT NICHOLAS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7795793,lon:-73.9807114,name:'Amsterdam Barber Shop Inc',desc:'287 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7929693,lon:-73.9681652,name:'Solomon Barber Shop Inc',desc:'104 WEST 96 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7624011,lon:-73.9932429,name:'Eriks Today Style Inc',desc:'660 10 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7165909,lon:-73.9929919,name:'Mei Shing Barber Shop',desc:'109 HESTER STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7773793,lon:-73.9782846,name:'Upper West Side Barbershop Inc',desc:'49 WEST 72 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8342884,lon:-73.9407809,name:'Da Edge Barbershop Corporation',desc:'2007 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7293013,lon:-73.9896521,name:'Toshi & Hairmate Inc',desc:'2 SAINT MARKS PLACE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7479543,lon:-73.9762898,name:'Bonbon Hair Salon & Spa Inc',desc:'571 THIRD AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8626346,lon:-73.9281221,name:'Master Ps Hair Cuts Corp',desc:'33 SHERMAN AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8421459,lon:-73.9354900,name:'Heights Finest Unisex Inc',desc:'2240 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7913959,lon:-73.9744902,name:'Gabys Barber Shop Inc',desc:'2451 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7208610,lon:-73.9993929,name:'Sohi Fellow Barber, Inc',desc:'33 CROSBY STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7568240,lon:-73.9719614,name:'Imperial Barbershop Inc',desc:'569 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7642682,lon:-73.9910370,name:'Holy Ghost Barbershop Llc',desc:'446 WEST 50 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7195763,lon:-73.9829991,name:'Dee Basement Barber Shop Llc',desc:'129 RIDGE STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7594861,lon:-73.9742246,name:'Xpress Barber Shop, Inc',desc:'509 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7066764,lon:-74.0127764,name:'Hair Club For Men, Llc',desc:'55 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7298065,lon:-73.9793144,name:'Mad 4 Cuts',desc:'520 EAST 14 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7775745,lon:-73.9795566,name:'Elegant Barbershop',desc:'118 WEST 72 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8364420,lon:-73.9393310,name:'Yamasa Barber Shop Inc',desc:'724 1/2 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8221661,lon:-73.9496277,name:'Triple A Barbershop Inc',desc:'1621 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7066121,lon:-74.0083022,name:'Down Town Association',desc:'60 PINEAPPLE STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7395464,lon:-73.9963382,name:'Mht By Jacob Corporation',desc:'112 WEST 17 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7409011,lon:-73.9884312,name:'Made Man Barbershop 3 Llc',desc:'10 EAST 23 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7497142,lon:-73.9754473,name:'Premium Barber Shop 4',desc:'622 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7151564,lon:-74.0156586,name:'Salvatore Barber Salon Inc',desc:'102 NORTH END AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7758137,lon:-73.9498889,name:'Lazart Hair Salon Inc',desc:'1626 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7688852,lon:-73.9635065,name:'Curly Hair And Spa Services Inc',desc:'954 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8205836,lon:-73.9550612,name:'Ots Beauty Salon Llc',desc:'3351 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7786620,lon:-73.9781057,name:'Nyc Barbershop Museum Inc',desc:'290 COLUMBUS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7207634,lon:-73.9971538,name:'Soho Nyc Barbers Inc',desc:'396 BROOME STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7601141,lon:-73.9747684,name:'Alex\'S Hairstyling Llc',desc:'520 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7714442,lon:-73.9509583,name:'York 77 Barber Shop Inc',desc:'448 EAST 79 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7226306,lon:-73.9846329,name:'Original Barber Shop Llc',desc:'174 EAST 2 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7255431,lon:-73.9876366,name:'Mannys Barbershop',desc:'125 EAST 4 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7420063,lon:-73.9933733,name:'Dardans Barbershop Llc',desc:'688 6 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7433310,lon:-73.9836956,name:'Space Hair Salon Inc',desc:'407 PARK AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7388418,lon:-74.0037451,name:'Sohi Fellow Barber, Inc',desc:'5 HORATIO STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7085759,lon:-74.0134741,name:'Johnny-Boys Ltd',desc:'108 GREENWICH STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7935709,lon:-73.9722635,name:'Fine Barbers Llc',desc:'2528 BROADWAY, Long Island City, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7446662,lon:-73.9761942,name:'Classic Barber Shop Ny Inc',desc:'619 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8148229,lon:-73.9437344,name:'Carmen Jox Modern Salon 2 Inc',desc:'2285 ADAM CLAYTON POWELL JR BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7419460,lon:-73.9824499,name:'Classic Barber Shop Ny Inc',desc:'137 EAST 27 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7361558,lon:-74.0017826,name:'Trim & Proper Holdings Llc',desc:'227 WAVERLY PLACE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7404920,lon:-73.9809240,name:'P3 Barber Shop',desc:'215 EAST 26 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7440126,lon:-73.9936205,name:'Barbiere Vincenzo Llc',desc:'124 WEST 24 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7206067,lon:-73.9752232,name:'East 3Rd Street Barber Shop',desc:'709 FDR DRIVE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7702337,lon:-73.9625304,name:'Modern Men\'S Grooming',desc:'992 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8048167,lon:-73.9515591,name:'New Harlem Unisex',desc:'1966 7 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8240715,lon:-73.9376322,name:'Papi Barber Shop Corp',desc:'2570 ADAM CLAYTON POWELL JR BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7772990,lon:-73.9612217,name:'Roman K Salon Madison Corp',desc:'1063 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8611342,lon:-73.9255823,name:'Vianca 5 Star Barber & Nails Salon Inc.',desc:'165 NAGLE AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8440623,lon:-73.9374897,name:'The Frank Barber Shop',desc:'1288 ST NICHOLAS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7559460,lon:-73.9804929,name:'Wilson Beauty Group Llc Dba Lw Salon',desc:'21 WEST 45 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7927246,lon:-73.9457678,name:'The Victor Barbershop',desc:'1703 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7829694,lon:-73.9517337,name:'Upper East Side Pro Barbers Llc',desc:'169 EAST 92 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7792958,lon:-73.9478499,name:'Uy Red Chair Studio Inc',desc:'1729 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7271020,lon:-73.9802035,name:'Blind Barber Bny, Llc',desc:'339 EAST 10 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7615734,lon:-73.9919187,name:'Grumd Barber Shop Inc.',desc:'429 WEST 46 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7349157,lon:-73.9989834,name:'Baxter Barber Shop Inc.',desc:'103 WEST 10 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7515511,lon:-73.9896134,name:'Glamour Center Inc',desc:'161 WEST 35 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7447807,lon:-73.9870090,name:'Romank Salon Inc',desc:'253 5 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8639559,lon:-73.9190727,name:'El Shorty Barbershop & Zalon #2 Corp',desc:'3859 10 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8374213,lon:-73.9428959,name:'Bbtax Corp',desc:'601 WEST 162 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7622854,lon:-73.9633454,name:'Master Barbers Barber Shop, Inc',desc:'1169 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7318408,lon:-73.9841641,name:'Smooth Out Slappy Haircutters Inc',desc:'320 EAST 14 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7854666,lon:-73.9791000,name:'Excellence Barber Shop & Hair Salon Inc.',desc:'2265 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7548808,lon:-73.9859928,name:'Finessecuts & Salon Llc',desc:'141 WEST 41 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7963645,lon:-73.9700570,name:'Dnh Barbershop Llc, Daniel Corniell',desc:'230 WEST 99 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7635166,lon:-73.9892421,name:'W 50Th Barbershop Inc',desc:'400 WEST 50 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7987842,lon:-73.9629827,name:'La Rubia De Columbus Barber Shop Inc',desc:'927 COLUMBUS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7887592,lon:-73.9486642,name:'Alex Vip Barber Shop Llc',desc:'1571 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7916272,lon:-73.9451926,name:'The Twins Barber Shop',desc:'176 EAST 106 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8660883,lon:-73.9187663,name:'207 Cut Point Barber Shop Corp',desc:'263 SHERMAN AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7343477,lon:-73.9940640,name:'Simkho Llc',desc:'15 1/2 EAST 12 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7418292,lon:-73.9994219,name:'Willie\'S Barber Shop',desc:'235 WEST 18 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7688852,lon:-73.9635065,name:'Lex Barbershop',desc:'954 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7418821,lon:-73.9964570,name:'Chelsea Cuts Llc',desc:'156 WEST 20 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8445035,lon:-73.9390987,name:'Made In Dr Barber Shop Inc',desc:'4093 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7409640,lon:-73.9981621,name:'Village Barber Shop Usa I, Inc.',desc:'126 7 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7483545,lon:-73.9927752,name:'Ar Hair And Barbering Inc',desc:'356 7 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7212246,lon:-73.9957375,name:'Maria Bonita Salon & Spa',desc:'199 MOTT STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7988448,lon:-73.9425212,name:'Waldys Taveras Dba Taveras Barber Shop Unisex',desc:'114 EAST 116 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7115645,lon:-74.0153292,name:'Adam Grooming Nyc Bp Llc',desc:'225 LIBERTY STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7938427,lon:-73.9449448,name:'Francisca Salgado Dba Salgado Barber Shop',desc:'1747 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8584688,lon:-73.9315020,name:'Pijin Barber Shop Inc',desc:'4520 BROADWAY, Astoria, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7571159,lon:-73.9695722,name:'Concourse Barber Shop',desc:'875 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7859103,lon:-73.9781205,name:'Leposh Hair Salon Inc',desc:'2286 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8165325,lon:-73.9431388,name:'Chaz Upscale Kutz',desc:'2330 ADAM CLAYTON POWELL JR BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7694054,lon:-73.9546077,name:'Nyc Blades And Cuts',desc:'1408 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7765173,lon:-73.9529602,name:'L\'Moshaliz Salon, Inc.',desc:'1615 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7770457,lon:-73.9535947,name:'Davids Barbershop Ii Inc',desc:'233 EAST 84 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7569868,lon:-73.9667254,name:'Premium Barber Shop 7',desc:'1012 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7351332,lon:-74.0021456,name:'G.A. Five Stars Barber Shop Inc.',desc:'150 7 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7835778,lon:-73.9740826,name:'Columbus Ave Barber Shop, Inc',desc:'451 COLUMBUS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7638283,lon:-73.9884812,name:'Rafik Shoe Repair & Barber Shop Llc',desc:'752 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7396347,lon:-73.9960546,name:'Mon Plaisir Hair Studio',desc:'111 WEST 17 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7441078,lon:-73.9746597,name:'Mady\'S Barber Shop Inc',desc:'326 EAST 34 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7070674,lon:-74.0038813,name:'Sohi Fellow Barber, Inc.',desc:'18 FULTON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7486725,lon:-73.9869023,name:'Nonstop Style 2 Inc',desc:'35 WEST 33 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8492208,lon:-73.9321785,name:'Stars Baber Shop Inc',desc:'332 AUDUBON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7563816,lon:-73.9815234,name:'Dannys Expert Haircuts Inc',desc:'55 WEST 45 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7966533,lon:-73.9378207,name:'Elite Cuts Barbershop Inc',desc:'2252 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7613799,lon:-73.9987574,name:'Ltf Club Operations Company, Inc.',desc:'605 WEST 42 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7561060,lon:-73.9672865,name:'Premium Barbershop 1 Llc',desc:'299 EAST 52 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7711237,lon:-73.9555937,name:'Men\'S Lounge Barber Shop And Spa',desc:'311 EAST 76 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8650532,lon:-73.9215793,name:'Louisa Unisex Salon',desc:'189 SHERMAN AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8278196,lon:-73.9491066,name:'Brandy Barber Shop Llc',desc:'3580 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8451051,lon:-73.9353506,name:'Santana Barbershop Inc',desc:'551 WEST 175 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7823027,lon:-73.9537175,name:'Carnegue Barber Shop Inc.',desc:'1364 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7595374,lon:-73.9676414,name:'Studio 34 At 56 St Inc',desc:'201 EAST 56 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7786620,lon:-73.9781057,name:'Nyc Barber On Wheels Corp',desc:'290 COLUMBUS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7437942,lon:-73.9953106,name:'Made Man Barbershop 1 Llc',desc:'170 WEST 23 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7192239,lon:-73.9829528,name:'Isalys',desc:'124 RIDGE STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7554454,lon:-73.9696148,name:'Spiff Men\'S Studio',desc:'227 EAST 50 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7960201,lon:-73.9437017,name:'La Republica Barber Shop Corp',desc:'1800 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8025611,lon:-73.9505174,name:'Maff The Barber',desc:'117 WEST 116 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7147950,lon:-73.9981322,name:'Kelli Hair Salon Inc.',desc:'19 PELL STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7988448,lon:-73.9425212,name:'Milciades Barber Shop Inc.',desc:'114 EAST 116 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7629231,lon:-73.9661881,name:'Beyond The Beard',desc:'170 EAST 61 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7662788,lon:-73.9822233,name:'King David Barbershop Inc',desc:'250 WEST 57 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7479521,lon:-73.9739101,name:'Leader Barber Shop Llc',desc:'250 EAST 39 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7632898,lon:-73.9930329,name:'Art Of Fades Hk Inc',desc:'699 10 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7290935,lon:-73.9867645,name:'Famous Cutz',desc:'305 EAST 9 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7234994,lon:-73.9945964,name:'Love City Styles',desc:'252 MOTT STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7973737,lon:-73.9694844,name:'101 Barber Shop',desc:'2644 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8457794,lon:-73.9383712,name:'Aneudis Barber Shop Llc',desc:'4126 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7828716,lon:-73.9512568,name:'K&Z Barber Inc',desc:'1650 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7211776,lon:-73.9834612,name:'Lower East Side Barbers Llc',desc:'309 EAST HOUSTON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8622723,lon:-73.9291067,name:'Xaff Cutz Inc',desc:'21 SHERMAN AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7555192,lon:-73.9722316,name:'Dapper Barbershop Inc.',desc:'142 EAST 49 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7327939,lon:-73.9903580,name:'4Th Avenue Barber Shop, Inc',desc:'70 EAST 12 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7449653,lon:-73.9819335,name:'European Barber Shop Nyc Corp',desc:'113 EAST 31 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7672328,lon:-73.9844922,name:'Gotham City Barbershop Ii Inc',desc:'336 WEST 57 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8073696,lon:-73.9376587,name:'Hairs To Style Studio Llc',desc:'1888 PARK AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7141154,lon:-73.9909400,name:'I & N Barber Shop Inc',desc:'150 EAST B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7264541,lon:-73.9961100,name:'Noho Hair Salon Inc',desc:'641 B\'WAY, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8289644,lon:-73.9489427,name:'Image Barbershop',desc:'3613 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7048549,lon:-74.0071984,name:'Nyc Barber Shop & Salon Inc',desc:'99 WALL STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8055301,lon:-73.9405310,name:'Moes Unisex Hair Hut',desc:'52 EAST 125 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7447272,lon:-73.9890610,name:'Chaps And Co Ny Llc',desc:'1165 BROADWAY, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8148193,lon:-73.9572895,name:'Morel Multiservices Inc',desc:'545 WEST 125 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7165909,lon:-73.9929919,name:'New Mei Shing Barber Shop',desc:'109 HESTER STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7294686,lon:-73.9989281,name:'Empire Cutzz Barber Shop Inc.',desc:'231 THOMPSON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8440811,lon:-73.9377866,name:'La Fe Unisex Beauty Salon Corp',desc:'1259 ST NICHOLAS\' AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7423763,lon:-73.9820481,name:'Elegant G Barber Shop Inc',desc:'136 EAST 28 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7549752,lon:-73.9820716,name:'Prestige Cuts Nyc Inc',desc:'35 WEST 43 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7175060,lon:-74.0106020,name:'Tribeca Barber Spa',desc:'325 GREENWICH STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8470784,lon:-73.9356048,name:'Mvp Look Corp.',desc:'1349 ST NICHOLAS\' AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7249596,lon:-73.9829809,name:'Ace Of Cuts Barber Shop Inc',desc:'518 EAST 6 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7608531,lon:-73.9669982,name:'969 Barber Shop Llc',desc:'969 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7262158,lon:-73.9911164,name:'Studio Kino, Inc.',desc:'7 EAST 3 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7272204,lon:-73.9865445,name:'Jasna\'S Hair Studio Llc',desc:'76 EAST 7 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7390061,lon:-73.9927154,name:'Madison Reed Color Bar Iii, Llc',desc:'11 WEST 18 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7184890,lon:-73.9899451,name:'Orchard Barber',desc:'6 ORCHARD STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7674884,lon:-73.9870167,name:'Hell\'S Kitchen 5 Stars Barber Shop Llc',desc:'410 WEST 56 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8439721,lon:-73.9378664,name:'Jardin Beauty Salon Corp.',desc:'1253 ST NICHOLAS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7610775,lon:-73.9606857,name:'Zoya Beauty Services Inc',desc:'1118 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7940364,lon:-73.9397326,name:'Jdr Barbershop Llc',desc:'2168 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7533472,lon:-73.9928600,name:'Ar Beauty And Wellness Corp',desc:'519 8 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7225797,lon:-74.0011983,name:'Kinhouse',desc:'466 BROOME STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8464070,lon:-73.9385989,name:'Estilismo Beauty Salon',desc:'4147 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7506498,lon:-73.9950153,name:'American Classic Barber Shop Llc',desc:'421 8 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8482296,lon:-73.9329014,name:'Dino\'S Stylo Hair Cut Inc',desc:'302 AUDUBON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7876092,lon:-73.9477921,name:'Are The Barber',desc:'1796 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7395571,lon:-73.9806273,name:'Barbers On 25Th',desc:'235 EAST 25 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7641867,lon:-73.9589832,name:'Premier Hair Salon',desc:'343 EAST 66 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8355793,lon:-73.9424114,name:'Castillos Beauty Unisex Salon Inc',desc:'539 WEST 160 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8305878,lon:-73.9477469,name:'Ariel & Mana Barber Shop Corp',desc:'3667 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7489276,lon:-73.9762201,name:'Premium Barber Shop 3',desc:'158 EAST 39 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8226071,lon:-73.9535770,name:'Harmony Beauty Inc',desc:'3417 BROADWAY, Astoria, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7148470,lon:-74.0167247,name:'Jack\'S Unisex Hair Salon, Inc.',desc:'300 VESEY STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7714442,lon:-73.9509583,name:'York Unisex Spa Inc',desc:'448 EAST 79 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8304900,lon:-73.9435453,name:'Juan\'S Beauty Salon',desc:'1887 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7683427,lon:-73.9584873,name:'Level Two Styles Inc.',desc:'1388 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7680593,lon:-73.9853916,name:'Majestic Cut Barbershop Inc',desc:'882 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7295939,lon:-73.9847375,name:'Hyperr Inc',desc:'334 EAST 11 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7773042,lon:-73.9791083,name:'Madison Reed Color Bar Iii Llc',desc:'252 COLUMBUS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7258879,lon:-73.9903221,name:'Sidney Foster Inc',desc:'27 EAST 3 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7179137,lon:-73.9922151,name:'Xin Sheng Barber Shop',desc:'103 ELDRIDGE STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7462505,lon:-73.9969952,name:'George James',desc:'270 WEST 25 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7706933,lon:-73.9584871,name:'City Barbers Inc',desc:'223 EAST 74 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7579854,lon:-73.9839465,name:'Cohen Barbershop Inc',desc:'138 WEST 46 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8205836,lon:-73.9550612,name:'Ebenezer Beauty Salon',desc:'3351 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7243133,lon:-74.0032271,name:'Peggarell Llc',desc:'65 THOMPSON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7688852,lon:-73.9635065,name:'Imperial Barbershop Inc',desc:'954 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7338995,lon:-74.0015107,name:'Registan Barber Inc Dba Jack\'S Barbershop',desc:'35 CHRISTOPHER STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8325805,lon:-73.9424741,name:'Beauty Corner Corp',desc:'1946 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7356544,lon:-74.0003972,name:'E & E Barberia Inc',desc:'48 GREENWICH AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7622854,lon:-73.9633454,name:'Master Barbers Nyc, Inc.',desc:'1169 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7424739,lon:-73.9807670,name:'Crown Royal Barbershop Llc',desc:'406 3 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8695171,lon:-73.9167401,name:'Nítido Barbershop Inc',desc:'5025 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7585819,lon:-73.9629581,name:'Beyond Barbers V A Inc',desc:'1049 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7338541,lon:-74.0018132,name:'Haar & Co.',desc:'45 CHRISTOPHER STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7637157,lon:-73.9922830,name:'Best Barber',desc:'694 10 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8138394,lon:-73.9450975,name:'The Parlour Shoppe',desc:'2252 ADAM CLAYTON POWELL JR BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8363253,lon:-73.9402089,name:'Like Unisex Barber Shop',desc:'1045 SAINT NICHOLAS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7393675,lon:-74.0011583,name:'Barbers Of Greenwich Corp Dba Wize Gize',desc:'237 WEST 14 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7710421,lon:-73.9514482,name:'Men\'S Barber Shop & Salon',desc:'445 EAST 78 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7610773,lon:-73.9904954,name:'Mama\'S Boy Barbershop',desc:'664 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8653393,lon:-73.9198765,name:'El Champion Barbershop Inc.',desc:'532 WEST 207 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7925326,lon:-73.9736806,name:'Excellence Barber Shop 3 Inc.',desc:'2487 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7368453,lon:-73.9814539,name:'Hollywood Salon Service Ny Inc',desc:'372 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7241508,lon:-74.0033655,name:'Barbers Point Soho Inc',desc:'59 THOMPSON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8146264,lon:-73.9477062,name:'Big Russ Barbershop Ii Inc',desc:'2470A FREDERICK DOUGLASS BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7632491,lon:-73.9782025,name:'Gotham City Barbershop Iii Inc',desc:'1363 AVENUE OF THE AMERICAS, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7411284,lon:-73.9790990,name:'Euro Barber Inc',desc:'242 EAST 28 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7601141,lon:-73.9747684,name:'The Art Of Shaving - Fl, Llc',desc:'520 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8237226,lon:-73.9416791,name:'Mirelis Garcia',desc:'301 WEST 146 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7313454,lon:-74.0029472,name:'Qb House Usa Inc.',desc:'259 BLEECKER STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7683640,lon:-73.9826407,name:'Ncs Twc Llc',desc:'10 COLUMBUS CIRCLE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7282888,lon:-73.9853223,name:'Rafaels Barbershop Vintage Corp',desc:'350 EAST 9 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7357258,lon:-74.0013869,name:'Barbershop I.S. On 7Th Ave',desc:'169 7 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7274031,lon:-73.9869530,name:'Lellobarb Llc',desc:'66 EAST 7 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7234311,lon:-74.0026943,name:'Igart Llc D/B/A/ Pisterzi - Italian Grooming Art',desc:'367 WEST BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7585819,lon:-73.9629581,name:'Beyond Barbers Llc',desc:'1049 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7618534,lon:-73.9925805,name:'The House Of Good Head, Llc',desc:'451 WEST 46 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7524119,lon:-73.9844979,name:'American Barber Institute',desc:'48 WEST 39 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7507686,lon:-73.9706530,name:'Le Salon',desc:'310 EAST 44 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7146235,lon:-73.9981749,name:'New China Beauty Salon Inc.',desc:'15 DOYERS STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7688440,lon:-73.9883015,name:'Gotham City Barbershop Inc',desc:'456 WEST 57 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7965551,lon:-73.9378921,name:'Fantasy Barbershop Corp',desc:'2248 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7246018,lon:-74.0027393,name:'Daniel Barber Shop Inc',desc:'80 THOMPSON STREET, Staten Island, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8394952,lon:-73.9375735,name:'Ibiza Nails Center, Corp',desc:'501 WEST 167 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8208381,lon:-73.9436068,name:'Steve Shoe Repair & Co',desc:'2655 FREDERICK DOUGLASS BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7176950,lon:-73.9973428,name:'Clw Hair Fashion Inc',desc:'115 MOTT STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7870809,lon:-73.9779089,name:'Madison Reed Hair Color Bar Iii, Llc',desc:'2315 B\'WAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7594861,lon:-73.9742246,name:'Galina\'S Center Inc',desc:'509 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7525233,lon:-73.9855750,name:'S.B Hair Studio Inc',desc:'1026 AVENUE OF THE AMERICAS, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7958679,lon:-73.9432661,name:'Jorge Barbershop',desc:'150 EAST 112 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7517073,lon:-73.9743208,name:'Qb House Usa Inc.',desc:'151 EAST 43 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8668660,lon:-73.9300654,name:'The Barbershop Nyc Inc',desc:'8 HENSHAW STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7337605,lon:-74.0057187,name:'Couture Cutz',desc:'242 WEST 10 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7941584,lon:-73.9396435,name:'Skinny Hair Styles Barber Shop',desc:'2172 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7292378,lon:-73.9783188,name:'Phd Barbers Of Ny Corp.',desc:'228 AVENUE B, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8156450,lon:-73.9436499,name:'Soul Barbershop',desc:'2306 7 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7791923,lon:-73.9834067,name:'Marcel\'S Unisex Salon Corp.',desc:'240 WEST 72 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7098210,lon:-74.0089618,name:'Qb House Usa Inc.',desc:'18 JOHN STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7278832,lon:-73.9899196,name:'East 6 Street Barbershop',desc:'216 EAST 6 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7754107,lon:-73.9587449,name:'The Charming Chap',desc:'1152 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7149001,lon:-73.9981241,name:'Pell 22 Hair Salon Corp',desc:'22 PELL STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7442126,lon:-73.9890862,name:'Sohi Fellow Barber, Inc.',desc:'1149 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7986126,lon:-73.9419873,name:'Next Level Barbers Inc',desc:'128 EAST 116 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7263851,lon:-74.0033881,name:'Pgf Barbers Llc',desc:'192 AVENUE OF THE AMERICAS, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7962626,lon:-73.9363933,name:'Lomax Cuts',desc:'338 EAST 116 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7365246,lon:-73.9790348,name:'Sigfrido\'S Barber Shop Inc.',desc:'381 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8036122,lon:-73.9381592,name:'The Cn Leland Corp.',desc:'2032 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7637092,lon:-73.9885706,name:'Johnified Consulting Services Inc',desc:'748 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7348547,lon:-74.0062977,name:'543 Hudson Barber Shop',desc:'543 HUDSON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7612083,lon:-73.9908431,name:'Hell\'S Kitchen Barbers Corp',desc:'667 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7526582,lon:-73.9746255,name:'Imperial Barbershop Inc',desc:'141 EAST 44 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8205170,lon:-73.9463536,name:'Garo Barber Shop',desc:'598 ST NICHOLAS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7538283,lon:-73.9741445,name:'First Class Barber Shop Of Ny Inc',desc:'475 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7392739,lon:-73.9884330,name:'Barbering By Marcus Inc',desc:'38 EAST 21 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7443420,lon:-73.9794343,name:'Studio At 460 3Rd Ave, Inc',desc:'460 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7300793,lon:-73.9807822,name:'Headline Barbershop Ev Inc.',desc:'217 AVENUE Q, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7153936,lon:-73.9980483,name:'Dz Barber Shop',desc:'63 BAYARD STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8236575,lon:-73.9410972,name:'The Oma, New York Llc',desc:'2754 FREDERICK DOUGLASS BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8247255,lon:-73.9468167,name:'425 Nuevo Concepto Barber Shop Corp',desc:'452 WEST 145 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7513635,lon:-73.9891645,name:'The Clipping Grounds Nyc Inc.',desc:'147 WEST 35 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7525629,lon:-73.9792732,name:'Amory Alexandra Hair For Men Llc',desc:'315 MADISON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7531648,lon:-74.0004352,name:'Sohi Fellow Barber, Inc.',desc:'20 HUDSON YARDS, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7694094,lon:-73.9631250,name:'Epr966, Llc.',desc:'966 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7663412,lon:-73.9633287,name:'Madison Reed',desc:'1140 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7167361,lon:-73.9908350,name:'Head Of State Shop',desc:'58 ORCHARD STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7972296,lon:-73.9386998,name:'Azteca Unisex Barber Shop',desc:'234 EAST 116 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8518245,lon:-73.9316876,name:'Los Gigantes Barbershop 2 Corp',desc:'1504 SAINT NICHOLAS\' AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7232072,lon:-73.9974021,name:'.Cartel Hair Studio',desc:'87 CROSBY STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8368116,lon:-73.9433825,name:'A.T. Barber Shop',desc:'601 WEST 161 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7554522,lon:-73.9720718,name:'Midtown Tonsorial Llc',desc:'146 EAST 49 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7388214,lon:-73.9835086,name:'Trim & Proper',desc:'162 EAST 23 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7493328,lon:-73.9843293,name:'35 Street Barber Shop Inc  Dba,  Fifth Ave Barber Shop',desc:'1 WEST 35 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7558541,lon:-73.9921442,name:'Jon Anthony',desc:'315 WEST 39 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8333631,lon:-73.9449006,name:'Juan D Abreu',desc:'559 WEST 156 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7663885,lon:-73.9818943,name:'Nordstrom Men\'S Store Nyc',desc:'235 WEST 57 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7360658,lon:-74.0009594,name:'Chaz Dean Ny Inc',desc:'59 GREENWICH AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8571095,lon:-73.9322191,name:'C & R Beauty Palace Corp Dba Republic Nail & Hair Studio',desc:'4470 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7568238,lon:-73.9811459,name:'Danny\'S Hair Salon & Spa Inc',desc:'48 WEST 46 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7306426,lon:-73.9864165,name:'Barber Shop On Second Avenue Inc',desc:'175 2 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7356245,lon:-73.9985396,name:'Chelsea Prime Barbershop Inc',desc:'103 WEST 11 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8325805,lon:-73.9424741,name:'Francis Beauty Salon Inc .',desc:'1946 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8609460,lon:-73.9266928,name:'Amadores Barber Shop Corp',desc:'118 NAGLE AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7061161,lon:-74.0128551,name:'Blue Chip Haircutters Llc',desc:'42 B\'WAY, Howard Beach, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8135815,lon:-73.9559125,name:'Margarita Beauty Salon',desc:'1345 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7513810,lon:-73.9839488,name:'Tudor Hair Salon Inc',desc:'22 WEST 38 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7412634,lon:-74.0012016,name:'Ace Of Fades Barbershop',desc:'128 8 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8017079,lon:-73.9577655,name:'Pelando & Rapeando Barbershop',desc:'2057 FREDERICK DOUGLASS BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8488548,lon:-73.9345036,name:'Tomas Barber Shop Inc',desc:'601 WEST 180 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7146832,lon:-73.9975981,name:'Sunny City Beauty Salon Inc',desc:'7 PELL STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7426758,lon:-73.9827656,name:'Classic Barber Shop Ii',desc:'130 EAST 28 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7199678,lon:-73.9902814,name:'Allen St Cut & Shave Llc',desc:'127 ALLEN STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7211170,lon:-73.9896933,name:'Resurrection Beauty Salon',desc:'161 ALLEN STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7266335,lon:-74.0037919,name:'First Class Barber Shop, Inc.',desc:'185 AVENUE OF THE AMERICAS, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7288308,lon:-73.9861216,name:'Catherine Dewerth',desc:'321 EAST 9 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7651657,lon:-73.9879528,name:'Katiusca Hair Stylist Llc',desc:'789 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7935556,lon:-73.9450652,name:'Boly Barbershop',desc:'151 EAST 108 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7229320,lon:-73.9959882,name:'Tuft Barber 1 Llc',desc:'243 MULBERRY STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7324200,lon:-74.0009321,name:'Wicked Ways Barber Shop',desc:'104 WASHINGTON PLACE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7072845,lon:-74.0119101,name:'Lifespa',desc:'1 WALL STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7608531,lon:-73.9669982,name:'Premium Barber Shop 8 Llc',desc:'969 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7292378,lon:-73.9783188,name:'Best Barber',desc:'228 AVENUE B, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7444384,lon:-73.9987560,name:'Phillips Barbershop Inc',desc:'270 WEST 22 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7397775,lon:-73.9890867,name:'True Barbers Llc',desc:'17 EAST 21 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7990272,lon:-73.9628098,name:'Eric Barbershop',desc:'935 COLUMBUS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8273758,lon:-73.9458360,name:'Don Niok\'S Barber Shop',desc:'1787 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7240381,lon:-73.9840689,name:'B & H Barber Shop Llc',desc:'199 EAST 4 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8404398,lon:-73.9367257,name:'Jennell Unisex Inc.',desc:'2194 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7730698,lon:-73.9567766,name:'Roshel And Son, Llc',desc:'232 EAST 78 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7370706,lon:-73.9905354,name:'Mattyleonellc',desc:'41 UNION SQUARE WEST, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7408795,lon:-74.0033092,name:'Fading Time Barbershop Llc',desc:'328 WEST 15 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7284548,lon:-73.9844750,name:'Famous Cutz East',desc:'156 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7242823,lon:-74.0030133,name:'The Barber Soho New York',desc:'68 THOMPSON STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7367154,lon:-73.9849230,name:'Besu Salon And Spa',desc:'234 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7253352,lon:-73.9876321,name:'Barber Collective Llc',desc:'126 EAST 4 STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7636907,lon:-73.9602217,name:'Symphony Of Scissors Inc',desc:'338 EAST 65 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7539259,lon:-73.9894804,name:'Enhancing Hair Salon & Barber Shop Corp',desc:'219 WEST 38 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7975534,lon:-73.9340659,name:'Sharper Cuts Hairstudio',desc:'2308 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7094402,lon:-74.0101238,name:'Broadway Hairstylist',desc:'160 B\'WAY, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7553291,lon:-73.9894890,name:'Flawlessdabarber',desc:'240 WEST 40 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7128339,lon:-73.9957264,name:'Shanghai Hong Sing Beauty Salon',desc:'44 HENRY STREET, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7394791,lon:-73.9829015,name:'Nyc777 Barber Shop Llc',desc:'318 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7466064,lon:-73.9772612,name:'Cuts On 3Rd Barbershop Llc',desc:'533 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7687888,lon:-73.9610823,name:'Onur Salon Inc',desc:'1225 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7489276,lon:-73.9762201,name:'Premium Barbershop 5 Inc',desc:'158 EAST 39 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7511465,lon:-73.9795745,name:'Elegant G Barber Shop Inc Iii',desc:'30 EAST 40 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8554864,lon:-73.9334756,name:'Moises Sports Barber Shop Corp',desc:'4411 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7596638,lon:-73.9959584,name:'Westside Barbers Inc',desc:'502 WEST 42 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7159989,lon:-73.9874593,name:'Grand Cutters Barber Shop',desc:'395 GRAND STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7163678,lon:-74.0043827,name:'Royal Hair Salon Ny Inc',desc:'342 B\'WAY, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7460576,lon:-74.0020292,name:'Prime Barbershop Inc',desc:'401 WEST 22 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7418292,lon:-73.9994219,name:'V & P Parber Shop Inc',desc:'235 WEST 18 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8349444,lon:-73.9403000,name:'Dimension Barbershop Corp',desc:'2027 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7939901,lon:-73.9448462,name:'1753 Golden Barbershop, Corp',desc:'1753 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7804051,lon:-73.9526133,name:'C & M Hair Salon Inc',desc:'1577 3 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8619724,lon:-73.9251976,name:'Barberia 134',desc:'112 DYCKMAN STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7324200,lon:-74.0009321,name:'Wicked Wayz Barbershop Inc',desc:'104 WASHINGTON PLACE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7987412,lon:-73.9367329,name:'H.O.S Ii Barbershop',desc:'2311 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7988448,lon:-73.9425212,name:'Milciades Babershop',desc:'114 EAST 116 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7854540,lon:-73.9764245,name:'Excellence Barber Shop & Hair Salon Inc.',desc:'473 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7061252,lon:-74.0092470,name:'Gian Antonio Pisterzi Barbers For Connoisseurs',desc:'55 WALL STREET, Staten Island, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7609190,lon:-73.9884056,name:'Hk Best Barbers Inc',desc:'319 WEST 47 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7557090,lon:-73.9948433,name:'D&S Hairstyling Inc/Dba 9Th Ave Barber Shop',desc:'495 9 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7197881,lon:-74.0039135,name:'Roman K Salon Tribeca Inc',desc:'315 CHURCH STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7161801,lon:-74.0071696,name:'Gentleman\'S Barber Spa',desc:'200 CHURCH STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7450101,lon:-73.9788813,name:'Yan Barber Shop Inc.',desc:'482 3 AVENUE, Brooklyn, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8111268,lon:-73.9581337,name:'Malvin Barbershop, Llc',desc:'1270 AMSTERDAM AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7570371,lon:-73.9797108,name:'Roma\'S Barbershop Inc.',desc:'20 WEST 47 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7558825,lon:-73.9672490,name:'Premium Barber Shop',desc:'302 EAST 52 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8463405,lon:-73.9361460,name:'Fama Barbershop Corp',desc:'1323 SAINT NICHOLAS AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7974644,lon:-73.9373504,name:'No. 2 Randy Barber Shop Inc',desc:'2274 2 AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8636635,lon:-73.9253351,name:'Dyckman Cut Barber Shop Inc',desc:'101 SHERMAN AVENUE, Staten Island, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7442799,lon:-73.9822158,name:'Zaluha Holdings Llc',desc:'121 EAST 30 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7324618,lon:-74.0016601,name:'Village Cuts Inc',desc:'179 WEST 4 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7640469,lon:-73.9802944,name:'Manhattan Cut',desc:'149 WEST 55 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8145051,lon:-73.9482300,name:'Joe\'S Barber Shop',desc:'2459 FREDERICK DOUGLASS BOULEVARD, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7959560,lon:-73.9437452,name:'Ny Best Barber Inc.',desc:'1798 LEXINGTON AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.8307960,lon:-73.9476008,name:'Superman Barbershop Inc',desc:'3671 BROADWAY, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7585768,lon:-73.9630983,name:'Beyond Barbers Llc',desc:'357 EAST 57 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7383483,lon:-74.0023068,name:'Manyes Barbershop Llc',desc:'117 GREENWICH AVENUE, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7467221,lon:-73.9846795,name:'John Cotton Studio',desc:'12 EAST 32 STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7164187,lon:-74.0078700,name:'Madison Reed Color Bar Iii, Llc',desc:'141 DUANE STREET, New York, NY, USA',color:'',icon:''});
+				GV_Draw_Marker({lat:40.7663537,lon:-73.9572884,name:'Eddies Haircut & Shave Inc',desc:'1295 1 AVENUE, New York, NY, USA',color:'',icon:''});
+				
+				GV_Finish_Map();
+					
+			}
+			GV_Map(); // execute the above code
+			// https://www.gpsvisualizer.com/map_input?allow_export=1&form=html&special=geocoder&units=us
+		</script>
+		
+		
+		
+	</body>
+
+</html>
